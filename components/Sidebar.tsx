@@ -9,7 +9,7 @@ import {
 
 const navItems = [
   { label: 'Dashboard',   href: '/dashboard',        icon: LayoutDashboard, roles: ['REQUESTER', 'PO_CREATOR', 'APPROVER', 'RECEIVER', 'SUPERADMIN'], section: 'main' },
-  { label: 'New Request', href: '/requests/new',      icon: PlusCircle,      roles: ['REQUESTER'],                                                      section: 'main' },
+  { label: 'New Request', href: '/requests/new',      icon: PlusCircle,      roles: ['REQUESTER', 'SUPERADMIN'],                                        section: 'main' },
   { label: 'PO Queue',    href: '/po/queue',          icon: FileCheck,       roles: ['PO_CREATOR', 'SUPERADMIN'],                                       section: 'main' },
   { label: 'Approvals',   href: '/approvals',         icon: CheckSquare,     roles: ['APPROVER', 'SUPERADMIN'],                                         section: 'main' },
   { label: 'Receiving',   href: '/receiving',         icon: Truck,           roles: ['RECEIVER', 'SUPERADMIN'],                                         section: 'main' },

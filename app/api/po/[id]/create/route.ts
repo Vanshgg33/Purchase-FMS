@@ -16,20 +16,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const po = await PurchaseOrder.findById(id);
   if (!po) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (po.status !== 'REQUESTED') return NextResponse.json({ error: 'PO is not in REQUESTED state' }, { status: 400 });
+  if (!['REQUESTED', 'REJECTED'].includes(po.status)) return NextResponse.json({ error: 'PO cannot be processed in its current state' }, { status: 400 });
 
   const { vendorId, vendorName, vendorPhone, materials, expectedDelivery } = await req.json();
   if (!vendorId || !vendorName) return NextResponse.json({ error: 'Vendor is required' }, { status: 400 });
   if (!materials?.length) return NextResponse.json({ error: 'Materials are required' }, { status: 400 });
 
+  const wasRejected = po.status === 'REJECTED';
   po.status = 'PO_CREATED';
   po.vendor = { vendorId, name: vendorName, phone: vendorPhone };
   po.poCreatedBy = user.userId;
   po.poCreatedByName = user.name;
   po.poCreatedAt = new Date();
+  po.approval = {};
   po.materials = materials.map((m: any) => ({ ...m, orderedQty: Number(m.orderedQty), expectedRate: Number(m.expectedRate) || 0 }));
   if (expectedDelivery) po.deadlines.deliveryDeadline = new Date(expectedDelivery);
-  po.timeline.push({ action: 'PO_CREATED', byUserId: user.userId, byName: user.name, at: new Date(), note: `Vendor: ${vendorName}` });
+  po.timeline.push({ action: 'PO_CREATED', byUserId: user.userId, byName: user.name, at: new Date(), note: `${wasRejected ? 'Re-submitted. ' : ''}Vendor: ${vendorName}` });
   await po.save();
 
   const matList = po.materials.map((m: any) => ({ name: m.name, requestedQty: m.orderedQty || m.requestedQty }));

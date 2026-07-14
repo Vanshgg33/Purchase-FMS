@@ -91,6 +91,12 @@ export default function CreatePOPage() {
             </span>
           )}
         </p>
+        {po.status === 'REJECTED' && po.approval?.rejectionReason && (
+          <div style={{ marginTop: '8px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '10px 14px' }}>
+            <p style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--red)', marginBottom: '2px' }}>Previously rejected</p>
+            <p style={{ fontSize: '12px', color: 'var(--red)' }}>Reason: {po.approval.rejectionReason}</p>
+          </div>
+        )}
         {po.requestRemark && (
           <p style={{ fontSize: '12.5px', color: 'var(--text-3)', marginTop: '6px', fontStyle: 'italic' }}>
             "{po.requestRemark}"
@@ -217,7 +223,7 @@ export default function CreatePOPage() {
         {error && <div className="alert alert-err" style={{ marginBottom: '14px' }}>{error}</div>}
 
         <button type="submit" disabled={loading} className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }}>
-          {loading ? 'Submitting…' : 'Submit for Approval'}
+          {loading ? 'Submitting…' : po.status === 'REJECTED' ? 'Re-submit for Approval' : 'Submit for Approval'}
         </button>
       </form>
     </div>

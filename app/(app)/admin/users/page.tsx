@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, ToggleLeft, ToggleRight, Key, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Key, Users } from 'lucide-react';
 
 const ROLES = ['REQUESTER', 'PO_CREATOR', 'APPROVER', 'RECEIVER', 'SUPERADMIN'];
 const emptyForm = { userId: '', name: '', designation: '', phone: '', email: '', role: 'REQUESTER', password: '' };
@@ -13,8 +13,10 @@ export default function AdminUsersPage() {
   const [form, setForm]         = useState({ ...emptyForm });
   const [saving, setSaving]     = useState(false);
   const [msg, setMsg]           = useState('');
-  const [resetPwUser, setResetPwUser] = useState<any>(null);
-  const [newPw, setNewPw]       = useState('');
+  const [resetPwUser, setResetPwUser]   = useState<any>(null);
+  const [newPw, setNewPw]             = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting]       = useState(false);
 
   const fetchUsers = () => {
     fetch('/api/admin/users').then(r => r.json()).then(d => { setUsers(d.users || []); setLoading(false); });
@@ -46,6 +48,13 @@ export default function AdminUsersPage() {
     if (!resetPwUser || !newPw) return;
     await fetch(`/api/admin/users/${resetPwUser._id}/reset-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newPassword: newPw }) });
     setResetPwUser(null); setNewPw('');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await fetch(`/api/admin/users/${deleteTarget._id}`, { method: 'DELETE' });
+    setDeleting(false); setDeleteTarget(null); fetchUsers();
   };
 
   const roleColors: Record<string, { bg: string; color: string }> = {
@@ -129,6 +138,11 @@ export default function AdminUsersPage() {
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; }}>
                           <Key size={13} />
                         </button>
+                        <button onClick={() => setDeleteTarget(u)} title="Delete user" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', transition: 'border-color 0.15s, color 0.15s' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--red)'; (e.currentTarget as HTMLElement).style.color = 'var(--red)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; }}>
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -183,6 +197,24 @@ export default function AdminUsersPage() {
                 <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save User'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <div className="modal-backdrop">
+          <div className="card fade-up" style={{ width: '100%', maxWidth: '400px', padding: '28px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '17px', fontWeight: 700, color: 'var(--text-base)', marginBottom: '8px' }}>Delete User?</h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--text-3)', marginBottom: '22px' }}>
+              Are you sure you want to permanently delete <strong style={{ color: 'var(--text-base)' }}>{deleteTarget.name}</strong> ({deleteTarget.userId})? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteTarget(null)} className="btn btn-ghost">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="btn btn-danger">
+                {deleting ? 'Deleting…' : 'Delete User'}
+              </button>
+            </div>
           </div>
         </div>
       )}

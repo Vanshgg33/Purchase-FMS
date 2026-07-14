@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Upload, MessageSquare, Send, Paperclip, ExternalLink } from 'lucide-react';
+import { Upload, MessageSquare, Send, Paperclip, ExternalLink, XCircle } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import { toIST } from '@/lib/dates';
 
@@ -40,6 +40,9 @@ export default function PODetailPage() {
   const [uploading, setUploading]       = useState(false);
   const [comment, setComment]           = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [cancelModal, setCancelModal]   = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling]     = useState(false);
 
   const fetchPO = async () => {
     const res = await fetch(`/api/po/${poNumber}`);
@@ -91,6 +94,13 @@ export default function PODetailPage() {
 
   const canUploadVendorBill   = ['APPROVER','PO_CREATOR','SUPERADMIN'].includes(user?.role) && po.status === 'SENT_TO_VENDOR';
   const canUploadPhysicalBill = ['RECEIVER', 'SUPERADMIN'].includes(user?.role) && po.status === 'BILL_UPLOADED';
+  const canCancel = ['PO_CREATOR','SUPERADMIN'].includes(user?.role) && ['REQUESTED','PO_CREATED','REJECTED'].includes(po.status);
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    await fetch(`/api/po/${po._id}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: cancelReason }) });
+    setCancelling(false); setCancelModal(false); setCancelReason(''); fetchPO();
+  };
 
   const hasDetails = po.vendor?.name || po.deadlines?.neededBy || po.deadlines?.deliveryDeadline || po.poCreatedByName;
 
@@ -112,6 +122,13 @@ export default function PODetailPage() {
               Requested by <strong style={{ color: 'var(--text-2)' }}>{po.requestedByName}</strong> · {toIST(po.requestedAt)}
             </p>
           </div>
+
+          {/* Cancel button */}
+          {canCancel && (
+            <button onClick={() => setCancelModal(true)} className="btn btn-danger btn-sm" style={{ flexShrink: 0 }}>
+              <XCircle size={13} /> Cancel PO
+            </button>
+          )}
 
           {/* Rejection banner */}
           {po.approval?.decision === 'REJECTED' && (
@@ -255,6 +272,34 @@ export default function PODetailPage() {
           </div>
         )}
       </div>
+
+      {/* ── Cancel modal ── */}
+      {cancelModal && (
+        <div className="modal-backdrop">
+          <div className="card modal-sheet fade-up" style={{ width: '100%', maxWidth: '440px', padding: '28px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '17px', fontWeight: 700, color: 'var(--text-base)', marginBottom: '6px' }}>
+              Cancel {po.poNumber}
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '18px' }}>
+              This will mark the PO as cancelled. Provide a reason (optional).
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="Reason for cancellation…"
+              className="field"
+              style={{ resize: 'none', marginBottom: '18px' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setCancelModal(false)} className="btn btn-ghost">Go Back</button>
+              <button onClick={handleCancel} disabled={cancelling} className="btn btn-danger">
+                {cancelling ? 'Cancelling…' : 'Cancel PO'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Timeline + Comments row ── */}
       <div className="grid-2">

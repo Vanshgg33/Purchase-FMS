@@ -1,14 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Edit2, ToggleLeft, ToggleRight, Package } from 'lucide-react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Package } from 'lucide-react';
 
 export default function AdminMaterialsPage() {
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [modal, setModal]         = useState(false);
-  const [editing, setEditing]     = useState<any>(null);
-  const [form, setForm]           = useState({ name: '', unit: 'KG', category: '', minStockAlert: '' });
-  const [saving, setSaving]       = useState(false);
+  const [materials, setMaterials]       = useState<any[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [modal, setModal]               = useState(false);
+  const [editing, setEditing]           = useState<any>(null);
+  const [form, setForm]                 = useState({ name: '', unit: 'KG', category: '', minStockAlert: '' });
+  const [saving, setSaving]             = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting]         = useState(false);
 
   const fetchMats = () => {
     fetch('/api/materials?all=1').then(r => r.json()).then(d => { setMaterials(d.materials || []); setLoading(false); });
@@ -28,6 +30,13 @@ export default function AdminMaterialsPage() {
   const toggleActive = async (m: any) => {
     await fetch(`/api/materials/${m._id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: !m.isActive }) });
     fetchMats();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await fetch(`/api/materials/${deleteTarget._id}`, { method: 'DELETE' });
+    setDeleting(false); setDeleteTarget(null); fetchMats();
   };
 
   return (
@@ -86,16 +95,41 @@ export default function AdminMaterialsPage() {
                     </button>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <button onClick={() => openEdit(m)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: 'var(--text-3)', display: 'inline-flex', transition: 'border-color 0.15s, color 0.15s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--amber)'; (e.currentTarget as HTMLElement).style.color = 'var(--amber)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; }}>
-                      <Edit2 size={13} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button onClick={() => openEdit(m)} title="Edit" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: 'var(--text-3)', display: 'inline-flex', transition: 'border-color 0.15s, color 0.15s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--amber)'; (e.currentTarget as HTMLElement).style.color = 'var(--amber)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; }}>
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => setDeleteTarget(m)} title="Delete" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', color: 'var(--text-3)', display: 'inline-flex', transition: 'border-color 0.15s, color 0.15s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--red)'; (e.currentTarget as HTMLElement).style.color = 'var(--red)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; }}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <div className="modal-backdrop">
+          <div className="card fade-up" style={{ width: '100%', maxWidth: '400px', padding: '28px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '17px', fontWeight: 700, color: 'var(--text-base)', marginBottom: '8px' }}>Delete Material?</h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--text-3)', marginBottom: '22px' }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--text-base)' }}>{deleteTarget.name}</strong>? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteTarget(null)} className="btn btn-ghost">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="btn btn-danger">
+                {deleting ? 'Deleting…' : 'Delete Material'}
+              </button>
+            </div>
           </div>
         </div>
       )}
