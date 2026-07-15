@@ -9,7 +9,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   await connectDB();
-  const pos = await PurchaseOrder.find({}, 'poNumber status materials requestedByName deadlines updatedAt createdAt')
+  const pos = await PurchaseOrder.find({}, 'poNumber status materials requestedByName deadlines updatedAt createdAt vendor')
     .sort({ createdAt: -1 }).limit(100).lean();
 
   return NextResponse.json({ pos });

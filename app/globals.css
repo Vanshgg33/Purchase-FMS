@@ -373,6 +373,122 @@ select.field option { background: #fff; }
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Ledger stat stubs ── */
+.stub {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.stub:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--border-em); }
+.stub--active { border-color: var(--border-em); box-shadow: inset 3px 0 0 var(--amber), var(--shadow); }
+.stub-body { padding: 14px 14px 12px; }
+.stub-tear {
+  position: relative;
+  border-top: 1px dashed var(--border-em);
+  margin: 0 6px;
+}
+.stub-tear::before, .stub-tear::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-base);
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.stub-tear::before { left: -13px; }
+.stub-tear::after { right: -13px; }
+.stub-footer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.18s ease;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--amber);
+  text-align: center;
+}
+.stub:hover .stub-footer, .stub--active .stub-footer { max-height: 30px; padding: 7px 0; }
+.stub--active .stub-footer { color: var(--amber-hover); }
+
+/* ── Pipeline stage flow ── */
+.stage-flow { display: flex; gap: 4px; }
+.stage-flow-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.stage-flow-count { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-base); }
+.stage-flow-tracks { position: relative; width: 100%; height: 72px; }
+.stage-flow-tracks::before {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 50%;
+  border-top: 1px dashed var(--border-em);
+  z-index: 0;
+}
+.stage-flow-track {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 34px; margin: 0 auto;
+  height: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px 6px 2px 2px;
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.stage-flow-bar {
+  width: 100%;
+  background: var(--amber);
+  border-radius: 6px 6px 0 0;
+  transition: height 0.6s cubic-bezier(.16,1,.3,1);
+}
+.stage-flow-label { font-size: 10px; color: var(--text-3); text-align: center; line-height: 1.25; }
+
+/* ── Arriving-soon rail ── */
+.rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scroll-snap-type: x proximity;
+}
+.rail-card {
+  scroll-snap-align: start;
+  flex: 0 0 208px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+  display: block;
+}
+.rail-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--border-em); }
+
+/* ── Logbook (activity timeline) ── */
+.logbook-item { display: flex; gap: 10px; position: relative; padding: 8px 0; }
+.logbook-item:not(:last-child)::before {
+  content: '';
+  position: absolute; left: 12px; top: 30px; bottom: -8px;
+  border-left: 1px dashed var(--border);
+}
+.logbook-icon {
+  width: 25px; height: 25px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up, .stage-flow-bar, .stub, .rail-card { animation: none !important; transition: none !important; }
+}
+
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }
