@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   LayoutDashboard, PlusCircle, FileCheck, CheckSquare, Truck,
-  ClipboardList, Users, Package, Building2, BarChart3, X,
+  ClipboardList, Users, Package, Building2, BarChart3, Calculator, X,
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Materials',   href: '/admin/materials',   icon: Package,         roles: ['SUPERADMIN'],                                                     section: 'admin' },
   { label: 'Vendors',     href: '/admin/vendors',     icon: Building2,       roles: ['SUPERADMIN'],                                                     section: 'admin' },
   { label: 'Reports',     href: '/admin/reports',     icon: BarChart3,       roles: ['SUPERADMIN'],                                                     section: 'admin' },
+  { label: 'Cost Tracker', href: '/cost-tracker',     icon: Calculator,      roles: ['SUPERADMIN'],                                                     section: 'admin' },
 ];
 
 const roleLabel: Record<string, string> = {
