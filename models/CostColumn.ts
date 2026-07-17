@@ -8,6 +8,7 @@ export interface ICostColumn extends Document {
   color: string;
   position: number;
   hidden: boolean;
+  locked: boolean; // superadmin-only editing when true
   createdAt: Date;
 }
 
@@ -17,6 +18,7 @@ const CostColumnSchema = new Schema<ICostColumn>({
   color: { type: String, default: '#22D3EE' },
   position: { type: Number, required: true },
   hidden: { type: Boolean, default: false },
+  locked: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.models.CostColumn || mongoose.model<ICostColumn>('CostColumn', CostColumnSchema);

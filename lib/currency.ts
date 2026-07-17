@@ -28,3 +28,11 @@ export function toEditValue(raw: string, type: ColumnType): string {
   const n = Number(raw);
   return Number.isNaN(n) ? raw : String(n * 100);
 }
+
+/** Delta chip helper for snapshot comparisons — "up" reads as cost increasing / worse, "down" as improving. */
+export function formatDelta(current: number, previous: number): { text: string; direction: 'up' | 'down' | 'flat' } {
+  if (!previous) return { text: '—', direction: 'flat' };
+  const pct = ((current - previous) / Math.abs(previous)) * 100;
+  if (Math.abs(pct) < 0.05) return { text: '0.0%', direction: 'flat' };
+  return { text: `${Math.abs(pct).toFixed(1)}%`, direction: pct > 0 ? 'up' : 'down' };
+}

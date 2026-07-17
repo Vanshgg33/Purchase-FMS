@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCostAdmin } from '@/lib/costAuth';
+import { isPinAdmin } from '@/lib/costPinAuth';
 import { connectDB } from '@/lib/mongodb';
 import CostColumn from '@/models/CostColumn';
 import CostCell from '@/models/CostCell';
@@ -12,6 +13,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = columnUpdateSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
+  if (parsed.data.locked !== undefined) {
+    const admin = await isPinAdmin(req);
+    if (!admin) return NextResponse.json({ error: 'Superadmin PIN required to lock/unlock columns' }, { status: 403 });
+  }
+
   await connectDB();
   const { id } = await params;
   const column = await CostColumn.findByIdAndUpdate(id, parsed.data, { new: true });
@@ -22,6 +28,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireCostAdmin();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const admin = await isPinAdmin(req);
+  if (!admin) return NextResponse.json({ error: 'Superadmin PIN required to delete columns' }, { status: 403 });
 
   await connectDB();
   const { id } = await params;
@@ -32,8 +40,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (idx === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   if (!force) {
-    // engine col 0 = product name, col 1..N = expense columns in position order
-    const letter = engineColLetter(idx + 1);
+    // engine col 0 = product name, col 1 = qty, col 2..N+1 = expense columns
+    const letter = engineColLetter(idx + 2);
     const refPattern = new RegExp(`\\b${letter}\\d+\\b`);
     const candidates = await CostCell.find({
       columnId: { $ne: id },
