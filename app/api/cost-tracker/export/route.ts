@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   const engine = new CostEngine();
   engine.registerConstants(constants.map(c => ({ name: c.name, value: c.value })));
   const matrix = buildCostMatrix(
-    products.map(p => ({ _id: p._id.toString(), name: p.name, batchQty: p.batchQty, sellingPrice: p.sellingPrice })),
+    products.map(p => ({ _id: p._id.toString(), name: p.name, batchQty: p.batchQty, baseAmount: p.baseAmount, sellingPrice: p.sellingPrice })),
     columns.map(c => ({ _id: c._id.toString() })),
     cellMap,
     totalOverrides,
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
   engine.hydrate(matrix);
   const offsets = getColumnOffsets(columns.length);
 
-  const header = ['Product', 'SKU', 'Unit', 'Qty', ...columns.map(c => c.label), 'Batch Total', 'Cost/Unit', 'Sell Price', 'Margin %'];
+  const header = ['Product', 'SKU', 'Unit', 'Qty', 'Base Amount', ...columns.map(c => c.label), 'Batch Total', 'Cost/Unit', 'Sell Price', 'Margin %'];
   const lines = [header.map(csvCell).join(',')];
 
   products.forEach((p, pi) => {
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     const marginPct = typeof margin === 'number' ? (margin * 100).toFixed(2) + '%' : margin;
 
     lines.push([
-      p.name, p.sku || '', p.unit, p.batchQty,
+      p.name, p.sku || '', p.unit, p.batchQty, p.baseAmount,
       ...expenseValues,
       batchTotal, costUnit, p.sellingPrice, marginPct,
     ].map(csvCell).join(','));

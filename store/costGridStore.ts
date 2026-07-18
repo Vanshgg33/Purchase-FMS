@@ -11,6 +11,7 @@ export interface CostProductLite {
   sku?: string;
   unit: string;
   batchQty: number;
+  baseAmount: number;
   sellingPrice: number;
   priceLocked: boolean;
   position: number;
@@ -59,7 +60,7 @@ interface CostGridState {
 
   sandbox: boolean;
   sandboxPendingCells: Map<string, DirtyCell>;
-  sandboxProductOverrides: Map<string, { batchQty?: number; sellingPrice?: number }>;
+  sandboxProductOverrides: Map<string, { batchQty?: number; baseAmount?: number; sellingPrice?: number }>;
 
   hydrate: (data: {
     products: CostProductLite[];
@@ -75,6 +76,7 @@ interface CostGridState {
 
   commitCell: (productIndex: number, columnIndex: number, raw: string) => CommitResult;
   commitQty: (productIndex: number, raw: string) => CommitResult;
+  commitBaseAmount: (productIndex: number, raw: string) => CommitResult;
   commitSellPrice: (productIndex: number, raw: string) => CommitResult & { needsUnlock?: boolean };
   setNote: (productId: string, columnId: string, note: string | null) => void;
   undo: () => void;
@@ -109,7 +111,7 @@ let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
 function matrixFrom(products: CostProductLite[], columns: CostColumnLite[], cellMap: Record<string, string>, totalOverrides: Record<string, string>) {
   return buildCostMatrix(
-    products.map(p => ({ _id: p._id, name: p.name, batchQty: p.batchQty, sellingPrice: p.sellingPrice })),
+    products.map(p => ({ _id: p._id, name: p.name, batchQty: p.batchQty, baseAmount: p.baseAmount, sellingPrice: p.sellingPrice })),
     columns.map(c => ({ _id: c._id })),
     cellMap,
     totalOverrides,
@@ -241,6 +243,42 @@ export const useCostGridStore = create<CostGridState>((set, get) => ({
           get().setToast(body?.error || 'Failed to save quantity', 'error');
         }
       }).catch(() => get().setToast('Failed to save quantity', 'error'));
+    }
+    setTimeout(() => set(s => (s.flash === flash ? { flash: new Set<string>() } : {})), 300);
+    return { ok: true };
+  },
+
+  commitBaseAmount: (productIndex, rawInput) => {
+    const state = get();
+    const n = Number(rawInput);
+    if (rawInput.trim() === '' || Number.isNaN(n) || n < 0) return { ok: false, error: 'Base Amount must be a non-negative number' };
+
+    const product = state.products[productIndex];
+    const row = productIndex + 1;
+    const offsets = getColumnOffsets(state.columns.length);
+    const changes = state.engine.setCell({ row, col: offsets.baseAmountCol }, String(n));
+    const flash = new Set<string>();
+    for (const change of changes) if ('row' in change) flash.add(`${change.row}:${change.col}`);
+
+    if (state.sandbox) {
+      const next = new Map(state.sandboxProductOverrides);
+      next.set(product._id, { ...next.get(product._id), baseAmount: n });
+      set({ flash, sandboxProductOverrides: next, recalcVersion: state.recalcVersion + 1 });
+    } else {
+      const prevBase = product.baseAmount;
+      get().patchProduct(product._id, { baseAmount: n });
+      set({ flash, recalcVersion: get().recalcVersion + 1 });
+      fetch(`/api/cost-tracker/products/${product._id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ baseAmount: n }),
+      }).then(async res => {
+        if (!res.ok) {
+          get().patchProduct(product._id, { baseAmount: prevBase });
+          state.engine.setCell({ row, col: offsets.baseAmountCol }, String(prevBase));
+          set({ recalcVersion: get().recalcVersion + 1 });
+          const body = await res.json().catch(() => ({}));
+          get().setToast(body?.error || 'Failed to save base amount', 'error');
+        }
+      }).catch(() => get().setToast('Failed to save base amount', 'error'));
     }
     setTimeout(() => set(s => (s.flash === flash ? { flash: new Set<string>() } : {})), 300);
     return { ok: true };
@@ -504,6 +542,7 @@ export const useCostGridStore = create<CostGridState>((set, get) => ({
       const pi = get().products.findIndex(p => p._id === pid);
       if (pi === -1) continue;
       if (patch.batchQty !== undefined) get().commitQty(pi, String(patch.batchQty));
+      if (patch.baseAmount !== undefined) get().commitBaseAmount(pi, String(patch.baseAmount));
       if (patch.sellingPrice !== undefined) get().commitSellPrice(pi, String(patch.sellingPrice));
     }
     for (const cell of state.sandboxPendingCells.values()) {

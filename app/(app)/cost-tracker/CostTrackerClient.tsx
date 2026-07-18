@@ -3,7 +3,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   Plus, MoreVertical, Trash2, Pencil, X, Boxes, Lock, Unlock, LogOut,
   Download, Image as ImageIcon, History, Copy, ArrowUp, ArrowDown, ArrowLeftRight,
-  Beaker, ChevronDown, ChevronRight, Sigma, FunctionSquare,
+  Beaker, ChevronDown, ChevronRight, Sigma, FunctionSquare, Camera,
 } from 'lucide-react';
 import {
   useCostGridStore, type CostProductLite, type CostColumnLite, type DirtyCell,
@@ -16,6 +16,7 @@ import { formatCellDisplay } from '@/lib/cellFormat';
 import GridCell from './GridCell';
 import QtyCell from './QtyCell';
 import PricePill from './PricePill';
+import BaseAmountBox from './BaseAmountBox';
 import UnlockDialog from './UnlockDialog';
 import PhotoGallery from './PhotoGallery';
 import ConstantsPanel from './ConstantsPanel';
@@ -108,7 +109,7 @@ export default function CostTrackerClient(props: Props) {
     if (products.length === 0) return;
     const nextPi = Math.min(Math.max(pi + dRow, 0), products.length - 1);
     const nextCi = Math.min(Math.max(ci + dCol, 0), Math.max(columns.length - 1, 0));
-    select(nextPi + 1, nextCi + 2);
+    select(nextPi + 1, getColumnOffsets(columns.length).firstExpenseCol + nextCi);
   }
 
   async function handleDeleteProduct(p: CostProductLite) {
@@ -153,7 +154,7 @@ export default function CostTrackerClient(props: Props) {
   async function duplicateProduct(p: CostProductLite) {
     const res = await fetch('/api/cost-tracker/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `${p.name} (copy)`, sku: p.sku, unit: p.unit, batchQty: p.batchQty, sellingPrice: p.sellingPrice }),
+      body: JSON.stringify({ name: `${p.name} (copy)`, sku: p.sku, unit: p.unit, batchQty: p.batchQty, baseAmount: p.baseAmount, sellingPrice: p.sellingPrice }),
     });
     if (!res.ok) { setToast('Failed to duplicate product', 'error'); return; }
     const { product } = await res.json();
@@ -268,7 +269,6 @@ export default function CostTrackerClient(props: Props) {
             <thead>
               <tr>
                 <th className={styles.cornerCell} />
-                <th className={styles.cornerCell} />
                 <th className={styles.colLetterCell}>A</th>
                 <th className={styles.colLetterCell}>B</th>
                 {columns.map((c, i) => <th key={c._id} className={styles.colLetterCell}>{engineColLetter(offsets.firstExpenseCol + i)}</th>)}
@@ -332,11 +332,17 @@ export default function CostTrackerClient(props: Props) {
                       </td>
                       <td className={styles.productCell}>
                         <div className={styles.productRow}>
-                          <div className={styles.productThumb} onClick={() => setGalleryProduct(p)} style={{ cursor: 'pointer', overflow: 'hidden' }}>
+                          <div
+                            className={`${styles.productThumb} ${p.photos.length > 0 ? styles.hasPhoto : ''}`}
+                            onClick={() => setGalleryProduct(p)}
+                            style={{ cursor: 'pointer', overflow: 'hidden' }}
+                            title={p.photos.length > 0 ? 'View photo gallery' : 'Add a product photo'}
+                          >
                             {(() => {
                               const primary = p.photos.find(ph => ph.isPrimary) || p.photos[0];
                               return primary ? <img src={primary.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name.slice(0, 1).toUpperCase();
                             })()}
+                            <span className={styles.productThumbBadge}><Camera size={9} /></span>
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -352,6 +358,9 @@ export default function CostTrackerClient(props: Props) {
                                   } else { e.target.value = p.name; }
                                 }}
                               />
+                            </div>
+                            <div className={styles.productBoxRow}>
+                              <BaseAmountBox product={p} productIndex={pi} styles={styles} />
                               <PricePill product={p} productIndex={pi} styles={styles} onNeedUnlock={() => setUnlockOpen(true)} />
                             </div>
                             <div className={styles.productMeta}>{p.sku ? `${p.sku} · ` : ''}{p.unit}</div>
@@ -483,11 +492,12 @@ function CostUnitCell({ productIndex, styles: s }: { productIndex: number; style
   return <td className={s.totalCell}>{text || '₹0.00'}</td>;
 }
 
-function AddProductModal({ onClose, onCreate }: { onClose: () => void; onCreate: (data: { name: string; sku?: string; unit: string; batchQty: number; sellingPrice: number }) => void }) {
+function AddProductModal({ onClose, onCreate }: { onClose: () => void; onCreate: (data: { name: string; sku?: string; unit: string; batchQty: number; baseAmount: number; sellingPrice: number }) => void }) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [unit, setUnit] = useState('unit');
   const [batchQty, setBatchQty] = useState('1');
+  const [baseAmount, setBaseAmount] = useState('0');
   const [sellingPrice, setSellingPrice] = useState('0');
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
@@ -513,15 +523,19 @@ function AddProductModal({ onClose, onCreate }: { onClose: () => void; onCreate:
             <input className={styles.input} value={batchQty} onChange={(e) => setBatchQty(e.target.value)} />
           </div>
           <div className={styles.field} style={{ flex: 1 }}>
-            <label className={styles.fieldLabel}>Selling Price ₹</label>
-            <input className={styles.input} value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} />
+            <label className={styles.fieldLabel}>Base Amount ₹</label>
+            <input className={styles.input} value={baseAmount} onChange={(e) => setBaseAmount(e.target.value)} placeholder="Always added to Batch Total" />
           </div>
+        </div>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel}>Selling Price ₹</label>
+          <input className={styles.input} value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} />
         </div>
         <div className={styles.modalActions}>
           <button className={styles.btn} onClick={onClose}><X size={13} /> Cancel</button>
           <button className={`${styles.btn} ${styles.btnPrimary}`} disabled={!name.trim()} onClick={() => onCreate({
             name: name.trim(), sku: sku.trim() || undefined, unit,
-            batchQty: Number(batchQty) || 1, sellingPrice: Number(sellingPrice) || 0,
+            batchQty: Number(batchQty) || 1, baseAmount: Number(baseAmount) || 0, sellingPrice: Number(sellingPrice) || 0,
           })}><Plus size={13} /> Add</button>
         </div>
       </div>

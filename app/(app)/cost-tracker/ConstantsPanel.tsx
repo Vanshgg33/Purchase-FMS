@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, Lock } from 'lucide-react';
 import { useCostGridStore } from '@/store/costGridStore';
+import { getColumnOffsets } from '@/lib/costMatrix';
 
 export default function ConstantsPanel({ styles, onClose, onNeedUnlock }: {
   styles: Record<string, string>;
@@ -36,7 +37,7 @@ export default function ConstantsPanel({ styles, onClose, onNeedUnlock }: {
     const pi = products.findIndex(p => p._id === productId);
     const ci = columns.findIndex(c => c._id === columnId);
     if (pi === -1 || ci === -1) return;
-    select(pi + 1, ci + 2);
+    select(pi + 1, getColumnOffsets(columns.length).firstExpenseCol + ci);
     setToast(`Jumped to first cell using ${name}`, 'info');
   }
 

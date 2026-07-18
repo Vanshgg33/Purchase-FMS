@@ -28,7 +28,7 @@ export async function computeAllCosts() {
   const engine = new CostEngine();
   engine.registerConstants(constants.map(c => ({ name: c.name, value: c.value })));
   const matrix = buildCostMatrix(
-    products.map(p => ({ _id: p._id.toString(), name: p.name, batchQty: p.batchQty, sellingPrice: p.sellingPrice })),
+    products.map(p => ({ _id: p._id.toString(), name: p.name, batchQty: p.batchQty, baseAmount: p.baseAmount, sellingPrice: p.sellingPrice })),
     columns.map(c => ({ _id: c._id.toString() })),
     cellMap,
     totalOverrides,

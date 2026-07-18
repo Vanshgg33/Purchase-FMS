@@ -8,6 +8,7 @@ export const productCreateSchema = z.object({
   sku: z.string().trim().max(100).optional(),
   unit: z.string().trim().max(30).default('unit'),
   batchQty: z.number().positive().max(1_000_000).default(1),
+  baseAmount: z.number().min(0).max(100_000_000).default(0),
   sellingPrice: z.number().min(0).max(100_000_000).default(0),
 });
 
@@ -16,6 +17,7 @@ export const productUpdateSchema = z.object({
   sku: z.string().trim().max(100).optional(),
   unit: z.string().trim().max(30).optional(),
   batchQty: z.number().positive().max(1_000_000).optional(),
+  baseAmount: z.number().min(0).max(100_000_000).optional(),
   sellingPrice: z.number().min(0).max(100_000_000).optional(),
   priceLocked: z.boolean().optional(),
   position: z.number().int().min(0).optional(),

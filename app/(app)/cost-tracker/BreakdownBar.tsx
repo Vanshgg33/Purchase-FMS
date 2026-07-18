@@ -3,6 +3,8 @@ import { useCostGridStore, type CostColumnLite } from '@/store/costGridStore';
 import { getColumnOffsets } from '@/lib/costMatrix';
 import { formatINR } from '@/lib/currency';
 
+const BASE_AMOUNT_SLICE = { _id: '__base__', label: 'Base Amount', color: 'var(--ct-formula)' };
+
 export default function BreakdownBar({ productIndex, columns, styles }: {
   productIndex: number;
   columns: CostColumnLite[];
@@ -13,10 +15,14 @@ export default function BreakdownBar({ productIndex, columns, styles }: {
   const offsets = getColumnOffsets(columns.length);
   const row = productIndex + 1;
 
-  const values = columns.map((c, ci) => {
-    const v = engine.getValue({ row, col: offsets.firstExpenseCol + ci });
-    return { column: c, value: typeof v === 'number' ? v : 0 };
-  });
+  const baseValue = engine.getValue({ row, col: offsets.baseAmountCol });
+  const values: { column: { _id: string; label: string; color: string }; value: number }[] = [
+    { column: BASE_AMOUNT_SLICE, value: typeof baseValue === 'number' ? baseValue : 0 },
+    ...columns.map((c, ci) => {
+      const v = engine.getValue({ row, col: offsets.firstExpenseCol + ci });
+      return { column: c, value: typeof v === 'number' ? v : 0 };
+    }),
+  ];
   const total = values.reduce((sum, v) => sum + Math.max(0, v.value), 0);
 
   return (

@@ -42,6 +42,7 @@ export default async function CostTrackerPage() {
         sku: p.sku,
         unit: p.unit,
         batchQty: p.batchQty,
+        baseAmount: p.baseAmount ?? 0,
         sellingPrice: p.sellingPrice,
         priceLocked: p.priceLocked,
         position: p.position,

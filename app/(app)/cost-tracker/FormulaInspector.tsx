@@ -26,6 +26,7 @@ export default function FormulaInspector({ styles, onClose }: Props) {
     const name = product ? product.name : `row ${row}`;
     if (col === 0) return `Product · ${name}`;
     if (col === offsets.qtyCol) return `Qty · ${name}`;
+    if (col === offsets.baseAmountCol) return `Base Amount · ${name}`;
     if (col === offsets.batchTotalCol) return `Batch Total · ${name}`;
     if (col === offsets.costUnitCol) return `Cost/Unit · ${name}`;
     if (col === offsets.sellPriceCol) return `Sell Price · ${name}`;

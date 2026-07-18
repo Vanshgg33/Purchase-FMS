@@ -179,12 +179,20 @@
   font-family: var(--ct-font-body);
 }
 .productThumb {
-  width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
-  background: var(--ct-surface-2); border: 1px solid var(--ct-border);
+  width: 42px; height: 42px; border-radius: 8px; flex-shrink: 0;
+  background: var(--ct-surface-2); border: 1.5px dashed var(--ct-border);
   display: flex; align-items: center; justify-content: center;
-  color: var(--ct-text-dim); font-size: 10px;
+  color: var(--ct-text-dim); font-size: 14px; font-weight: 600;
+  position: relative; transition: border-color 0.15s, transform 0.1s;
 }
-.productRow { display: flex; align-items: center; gap: 8px; }
+.productThumb:hover { border-color: var(--ct-accent); transform: scale(1.04); }
+.productThumb.hasPhoto { border-style: solid; }
+.productThumbBadge {
+  position: absolute; bottom: -3px; right: -3px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ct-accent); color: var(--ct-bg); display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--ct-surface);
+}
+.productRow { display: flex; align-items: flex-start; gap: 10px; }
 .productName { font-weight: 500; font-size: 13px; color: var(--ct-text); background: transparent; border: none; outline: none; width: 100%; font-family: var(--ct-font-body); }
 .productName:focus { color: var(--ct-accent); }
 .productMeta { font-size: 10.5px; color: var(--ct-text-dim); }
@@ -311,6 +319,22 @@
 .deltaUp { color: var(--ct-danger); }
 .deltaDown { color: var(--ct-accent-2); }
 .deltaFlat { color: var(--ct-text-dim); }
+
+/* ── Base Amount box ── */
+.baseAmountBox {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--ct-font-mono); font-size: 11.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ct-formula);
+  color: var(--ct-formula); background: rgba(210,168,255,0.06); cursor: pointer;
+  transition: background 0.15s;
+}
+.baseAmountBox:hover { background: rgba(210,168,255,0.14); }
+.baseAmountLabel { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; opacity: 0.8; }
+.baseAmountInput {
+  width: 84px; background: var(--ct-surface-2); border: 1px solid var(--ct-formula); border-radius: 999px;
+  color: var(--ct-text); font-family: var(--ct-font-mono); font-size: 11.5px; padding: 2px 8px; outline: none;
+}
+.productBoxRow { display: flex; align-items: center; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
 
 /* ── Locked columns ── */
 .thLocked { color: var(--ct-danger); }

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useCostGridStore, type CostColumnLite } from '@/store/costGridStore';
+import { getColumnOffsets } from '@/lib/costMatrix';
 import { toEditValue } from '@/lib/currency';
 import { formatCellDisplay } from '@/lib/cellFormat';
 
@@ -18,6 +19,7 @@ export default function GridCell({ productIndex, columnIndex, column, styles, on
   const cellMap = useCostGridStore(s => s.cellMap);
   const noteMap = useCostGridStore(s => s.noteMap);
   const products = useCostGridStore(s => s.products);
+  const columns = useCostGridStore(s => s.columns);
   const selected = useCostGridStore(s => s.selected);
   const flash = useCostGridStore(s => s.flash);
   const select = useCostGridStore(s => s.select);
@@ -27,7 +29,7 @@ export default function GridCell({ productIndex, columnIndex, column, styles, on
   useCostGridStore(s => s.recalcVersion); // subscribe only to trigger re-render on engine mutations
 
   const row = productIndex + 1;
-  const col = columnIndex + 2; // engine col 0=name,1=qty,2..=expenses
+  const col = getColumnOffsets(columns.length).firstExpenseCol + columnIndex; // engine col 0=name,1=qty,2=baseAmount,3..=expenses
   const product = products[productIndex];
   const key = `${product._id}:${column._id}`;
   const raw = cellMap[key] ?? '';
