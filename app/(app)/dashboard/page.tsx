@@ -1,24 +1,21 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import {
   AlertCircle, CheckCircle, Clock, Package, ShoppingCart, Truck, XCircle,
   Receipt, Paperclip, CheckCircle2, ChevronUp, ChevronDown, ArrowUpDown, X,
 } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
+import PipelineHero from './PipelineHero';
+import PersonOrderCard from './PersonOrderCard';
+import UploadPhotosPanel from './UploadPhotosPanel';
+import VendorSpotlight from './VendorSpotlight';
+import type { DashboardPO } from './types';
 
 interface Stats {
   openRequests: number; awaitingApproval: number; withVendor: number;
   arrivingSoon: number; overdue: number; completedThisMonth: number;
-}
-
-interface PO {
-  _id: string; poNumber: string; status: string;
-  materials: Array<{ name: string; requestedQty: number }>;
-  requestedByName: string;
-  vendor?: { name?: string };
-  deadlines: { neededBy?: string; deliveryDeadline?: string };
-  updatedAt: string; createdAt: string;
 }
 
 const STAT_FILTER_MAP: Record<string, string> = {
@@ -60,33 +57,27 @@ const ACTION_META: Record<string, { icon: any; color: string; bg: string }> = {
   CLOSED:           { icon: CheckCircle2, color: '#6B7280', bg: '#F9FAFB' },
 };
 
-function getDeadline(po: PO) { return po.deadlines?.deliveryDeadline || po.deadlines?.neededBy || null; }
+function getDeadline(po: DashboardPO) { return po.deadlines?.deliveryDeadline || po.deadlines?.neededBy || null; }
 
-function isOverdue(po: PO) {
+function isOverdue(po: DashboardPO) {
   const dl = getDeadline(po);
   return !!dl && new Date(dl) < new Date() && !['CLOSED', 'CANCELLED'].includes(po.status);
-}
-
-function countdownInfo(dl: string) {
-  const days = Math.ceil((new Date(dl).getTime() - Date.now()) / 86400000);
-  if (days < 0)  return { text: `${Math.abs(days)}d overdue`, color: 'var(--red)',   bg: 'var(--red-light)' };
-  if (days === 0) return { text: 'Due today',                  color: 'var(--amber)', bg: 'var(--amber-light)' };
-  if (days === 1) return { text: 'Tomorrow',                   color: 'var(--amber)', bg: 'var(--amber-light)' };
-  return          { text: `In ${days}d`,                       color: 'var(--green)', bg: 'var(--green-light)' };
 }
 
 type SortKey = 'poNumber' | 'status' | 'deadline' | 'requestedBy' | null;
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
+
   const [stats, setStats]     = useState<Stats>({ openRequests: 0, awaitingApproval: 0, withVendor: 0, arrivingSoon: 0, overdue: 0, completedThisMonth: 0 });
-  const [pos, setPos]         = useState<PO[]>([]);
+  const [pos, setPos]         = useState<DashboardPO[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState('');
   const [activity, setActivity] = useState<any[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [flowMounted, setFlowMounted] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -102,11 +93,13 @@ export default function DashboardPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-    const id = requestAnimationFrame(() => setFlowMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, [loading]);
+  const handlePhotoUploaded = (kind: 'user' | 'vendor', id: string, url: string) => {
+    setPos(prev => prev.map(po => {
+      if (kind === 'user' && po.requestedBy === id) return { ...po, requestedByPhoto: url };
+      if (kind === 'vendor' && po.vendor?.vendorId === id) return { ...po, vendorPhoto: url };
+      return po;
+    }));
+  };
 
   const cards = statCards(stats);
   const startOfMonth = useMemo(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), 1); }, []);
@@ -163,14 +156,41 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(getDeadline(a)!).getTime() - new Date(getDeadline(b)!).getTime());
   }, [pos]);
 
-  const stageData = [
-    { label: 'Requested',  count: pos.filter(p => p.status === 'REQUESTED').length },
-    { label: 'PO Created', count: pos.filter(p => p.status === 'PO_CREATED').length },
-    { label: 'Approved',   count: pos.filter(p => p.status === 'APPROVED').length },
-    { label: 'With Vendor',count: pos.filter(p => ['SENT_TO_VENDOR', 'BILL_UPLOADED'].includes(p.status)).length },
-    { label: 'Received',   count: pos.filter(p => ['RECEIVED', 'CLOSED'].includes(p.status)).length },
-  ];
-  const maxStage = Math.max(1, ...stageData.map(s => s.count));
+  const peopleCards = arrivingSoonPos.slice(0, 4);
+
+  const uploadTiles = useMemo(() => {
+    const seen = new Set<string>();
+    const tiles: { kind: 'user' | 'vendor'; id: string; name: string; photo: string | null }[] = [];
+    for (const po of peopleCards) {
+      const userKey = `user:${po.requestedBy}`;
+      if (po.requestedBy && !seen.has(userKey)) {
+        seen.add(userKey);
+        tiles.push({ kind: 'user', id: po.requestedBy, name: po.requestedByName, photo: po.requestedByPhoto });
+      }
+      const vendorId = po.vendor?.vendorId;
+      const vendorKey = vendorId ? `vendor:${vendorId}` : null;
+      if (vendorId && vendorKey && !seen.has(vendorKey)) {
+        seen.add(vendorKey);
+        tiles.push({ kind: 'vendor', id: vendorId, name: po.vendor?.name || 'Vendor', photo: po.vendorPhoto });
+      }
+    }
+    return tiles;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleCards]);
+
+  const vendorSpotlight = useMemo(() => {
+    const counts = new Map<string, { name: string; photo: string | null; count: number }>();
+    for (const po of pos) {
+      const vendorId = po.vendor?.vendorId;
+      if (!vendorId || ['CLOSED', 'CANCELLED'].includes(po.status)) continue;
+      const existing = counts.get(vendorId);
+      if (existing) existing.count += 1;
+      else counts.set(vendorId, { name: po.vendor?.name || 'Vendor', photo: po.vendorPhoto, count: 1 });
+    }
+    let best: { name: string; photo: string | null; count: number } | null = null;
+    for (const v of counts.values()) if (!best || v.count > best.count) best = v;
+    return best;
+  }, [pos]);
 
   const today = new Date();
   const summaryLine = stats.overdue > 0
@@ -190,19 +210,47 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ maxWidth: '1200px' }}>
+    <div style={{ margin: '-24px -28px 0' }}>
 
-      {/* Ledger hero strip */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', paddingBottom: '14px', marginBottom: '20px', borderBottom: '1px dashed var(--border-em)' }}>
+      <PipelineHero
+        pos={pos}
+        title="Procurement Ledger"
+        dateLine={today.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+        summaryLine={summaryLine}
+        totalOnRecord={pos.length}
+      />
+
+      <div style={{ maxWidth: '1200px', padding: '26px 28px 0' }}>
+
+      {/* People behind the orders + right rail */}
+      <div className="dash-grid" style={{ marginBottom: '20px' }}>
         <div>
-          <p className="display" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-base)' }}>Procurement Ledger</p>
-          <p style={{ fontSize: '12.5px', color: 'var(--text-3)', marginTop: '2px' }}>
-            {today.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} · {summaryLine}
-          </p>
+          <p className="display" style={{ fontWeight: 600, fontSize: '17px', color: 'var(--text-base)', marginBottom: '14px' }}>People behind the orders</p>
+          {loading ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-3)', padding: '8px 0' }}>Loading…</p>
+          ) : peopleCards.length === 0 ? (
+            <div className="card" style={{ padding: '24px', fontSize: '13px', color: 'var(--text-3)', textAlign: 'center' }}>Nothing due in the next 7 days.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {peopleCards.map(po => <PersonOrderCard key={po._id} po={po} deadline={getDeadline(po)!} />)}
+            </div>
+          )}
         </div>
-        <p className="mono" style={{ fontSize: '11px', color: 'var(--text-3)', letterSpacing: '0.04em' }}>
-          NATURELITE FOODS · {String(pos.length).padStart(4, '0')} ON RECORD
-        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {role === 'SUPERADMIN' && <UploadPhotosPanel tiles={uploadTiles} onUploaded={handlePhotoUploaded} />}
+          {vendorSpotlight && <VendorSpotlight name={vendorSpotlight.name} photo={vendorSpotlight.photo} activeCount={vendorSpotlight.count} />}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="card" style={{ padding: '12px', textAlign: 'center' }}>
+              <div className="display" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--red)' }}>{loading ? '—' : stats.overdue}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>Overdue</div>
+            </div>
+            <div className="card" style={{ padding: '12px', textAlign: 'center' }}>
+              <div className="display" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-base)' }}>{loading ? '—' : stats.completedThisMonth}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>Done this month</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stat stubs */}
@@ -229,41 +277,6 @@ export default function DashboardPage() {
             </button>
           );
         })}
-      </div>
-
-      {/* Arriving this week rail */}
-      <div className="card fade-up" style={{ padding: '16px', marginBottom: '20px', animationDelay: '160ms' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p className="display" style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-base)' }}>Arriving This Week</p>
-          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>{arrivingSoonPos.length} shipment{arrivingSoonPos.length === 1 ? '' : 's'}</span>
-        </div>
-        {loading ? (
-          <p style={{ fontSize: '13px', color: 'var(--text-3)', padding: '8px 0' }}>Loading…</p>
-        ) : arrivingSoonPos.length === 0 ? (
-          <p style={{ fontSize: '13px', color: 'var(--text-3)', padding: '8px 0' }}>Nothing due in the next 7 days.</p>
-        ) : (
-          <div className="rail">
-            {arrivingSoonPos.map(po => {
-              const dl = getDeadline(po)!;
-              const info = countdownInfo(dl);
-              return (
-                <Link key={po._id} href={`/po/${po.poNumber}`} className="rail-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--amber)' }}>{po.poNumber}</span>
-                    <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: info.bg, color: info.color, whiteSpace: 'nowrap' }}>{info.text}</span>
-                  </div>
-                  <p style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-base)', marginBottom: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {po.materials.map(m => m.name).join(', ') || 'No materials listed'}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{po.vendor?.name || 'No vendor assigned'}</span>
-                    <StatusBadge status={po.status} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Main grid */}
@@ -359,24 +372,6 @@ export default function DashboardPage() {
         {/* Right col */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Pipeline stage flow */}
-          <div className="card" style={{ padding: '16px' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '13.5px', marginBottom: '14px', color: 'var(--text-base)' }}>Pipeline Flow</p>
-            <div className="stage-flow">
-              {stageData.map(stage => (
-                <div key={stage.label} className="stage-flow-col">
-                  <span className="stage-flow-count">{stage.count}</span>
-                  <div className="stage-flow-tracks">
-                    <div className="stage-flow-track">
-                      <div className="stage-flow-bar" style={{ height: `${flowMounted ? (stage.count / maxStage) * 64 : 0}px` }} />
-                    </div>
-                  </div>
-                  <span className="stage-flow-label">{stage.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Logbook */}
           <div className="card" style={{ padding: '16px' }}>
             <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '13.5px', marginBottom: '8px', color: 'var(--text-base)' }}>Logbook</p>
@@ -405,6 +400,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
       </div>
     </div>
   );

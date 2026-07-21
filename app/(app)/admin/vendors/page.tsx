@@ -88,9 +88,13 @@ export default function AdminVendorsPage() {
                 <tr key={v._id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: v.isActive ? '#F0FDF4' : 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Building2 size={15} style={{ color: v.isActive ? 'var(--green)' : 'var(--text-3)' }} />
-                      </div>
+                      {v.photoUrl ? (
+                        <img src={v.photoUrl} style={{ width: '34px', height: '34px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} alt="" />
+                      ) : (
+                        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: v.isActive ? '#F0FDF4' : 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Building2 size={15} style={{ color: v.isActive ? 'var(--green)' : 'var(--text-3)' }} />
+                        </div>
+                      )}
                       <span style={{ fontWeight: 700, color: v.isActive ? 'var(--text-base)' : 'var(--text-3)', fontSize: '13.5px' }}>{v.name}</span>
                     </div>
                   </td>
