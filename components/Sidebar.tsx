@@ -18,7 +18,7 @@ const navItems = [
   { label: 'Materials',   href: '/admin/materials',   icon: Package,         roles: ['SUPERADMIN'],                                                     section: 'admin' },
   { label: 'Vendors',     href: '/admin/vendors',     icon: Building2,       roles: ['SUPERADMIN'],                                                     section: 'admin' },
   { label: 'Reports',     href: '/admin/reports',     icon: BarChart3,       roles: ['SUPERADMIN'],                                                     section: 'admin' },
-  { label: 'Cost Tracker', href: '/cost-tracker',     icon: Calculator,      roles: ['SUPERADMIN'],                                                     section: 'admin' },
+  { label: 'Cost Tracker', href: '/cost-tracker',     icon: Calculator,      roles: ['SUPERADMIN', 'PRODUCTION'],                                       section: 'admin' },
 ];
 
 const roleLabel: Record<string, string> = {
@@ -27,6 +27,7 @@ const roleLabel: Record<string, string> = {
   APPROVER:   'Approver',
   RECEIVER:   'Receiver',
   SUPERADMIN: 'Super Admin',
+  PRODUCTION: 'Factory Supervisor',
 };
 
 interface SidebarProps { open: boolean; onClose: () => void; }

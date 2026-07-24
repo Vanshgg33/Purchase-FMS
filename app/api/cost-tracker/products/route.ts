@@ -1,34 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireCostAdmin } from '@/lib/costAuth';
+import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
-import CostProduct from '@/models/CostProduct';
-import CostProductPhoto from '@/models/CostProductPhoto';
-import { productCreateSchema } from '@/lib/costValidators';
+import { requireCapability, requireCtSession } from '@/lib/permissions';
+import { ctRoute } from '@/lib/costApi';
+import { writeAudit } from '@/lib/costAudit';
+import { productSchema, zodFieldErrors } from '@/lib/costValidation';
+import { AppError } from '@/lib/costErrors';
+import Product from '@/models/Product';
+import ProductPhoto from '@/models/ProductPhoto';
 
 export async function GET() {
-  const session = await requireCostAdmin();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  await connectDB();
-  const [products, photos] = await Promise.all([
-    CostProduct.find().sort({ position: 1 }).lean(),
-    CostProductPhoto.find().sort({ position: 1 }).lean(),
-  ]);
-  const withPhotos = products.map(p => ({
-    ...p,
-    photos: photos.filter(ph => ph.productId.toString() === p._id.toString()),
-  }));
-  return NextResponse.json({ products: withPhotos });
+  return ctRoute(async () => {
+    await requireCtSession();
+    await connectDB();
+    const products = await Product.find({ isActive: true }).sort({ name: 1 }).lean();
+    const photos = await ProductPhoto.find({ productId: { $in: products.map((p: any) => p._id) } }).sort({ position: 1 }).lean();
+    const byProduct = new Map<string, any[]>();
+    for (const ph of photos as any[]) {
+      const key = ph.productId.toString();
+      if (!byProduct.has(key)) byProduct.set(key, []);
+      byProduct.get(key)!.push(ph);
+    }
+    return products.map((p: any) => ({ ...p, photos: byProduct.get(p._id.toString()) || [] }));
+  });
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireCostAdmin();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const parsed = productCreateSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+  return ctRoute(async () => {
+    const session = await requireCapability('MANAGE_PRODUCTS');
+    await connectDB();
+    const parsed = productSchema.safeParse(await req.json());
+    if (!parsed.success) throw new AppError('VALIDATION_ERROR', 'Invalid product data', { fields: zodFieldErrors(parsed.error) });
 
-  await connectDB();
-  const last = await CostProduct.findOne().sort({ position: -1 }).lean();
-  const position = last ? (last as any).position + 1 : 0;
-  const product = await CostProduct.create({ ...parsed.data, position });
-  return NextResponse.json({ product: { ...product.toObject(), photos: [] } });
+    const product = await Product.create({ ...parsed.data, createdBy: session.userId });
+    await writeAudit({ entity: 'Product', entityId: product._id.toString(), action: 'CREATE', session });
+    return { ...product.toObject(), photos: [] };
+  });
 }

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type UserRole = 'REQUESTER' | 'PO_CREATOR' | 'APPROVER' | 'RECEIVER' | 'SUPERADMIN';
+export type UserRole = 'REQUESTER' | 'PO_CREATOR' | 'APPROVER' | 'RECEIVER' | 'SUPERADMIN' | 'PRODUCTION';
 
 export interface IUser extends Document {
   userId: string;
@@ -50,7 +50,7 @@ const UserSchema = new Schema<IUser>({
   designation: { type: String, default: '' },
   phone: { type: String, default: '' },
   email: { type: String, required: true },
-  role: { type: String, enum: ['REQUESTER', 'PO_CREATOR', 'APPROVER', 'RECEIVER', 'SUPERADMIN'], required: true },
+  role: { type: String, enum: ['REQUESTER', 'PO_CREATOR', 'APPROVER', 'RECEIVER', 'SUPERADMIN', 'PRODUCTION'], required: true },
   profilePhotoUrl: String,
   employeeDetails: { type: Schema.Types.Mixed, default: {} },
   pushSubscription: Schema.Types.Mixed,
