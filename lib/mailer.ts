@@ -4,10 +4,12 @@ import User from '@/models/User';
 import { toIST } from './dates';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -46,7 +48,7 @@ function emailTemplate(subject: string, poNumber: string, status: string, perfor
 }
 
 export async function sendEmailToRoles(roles: string[], subject: string, poNumber: string, status: string, performer: string, materials: Array<{ name: string; requestedQty: number }>, deadline?: string, note?: string) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
   try {
     await connectDB();
     const users = await User.find({ role: { $in: roles }, isActive: true, email: { $ne: '' } }, 'email');
@@ -54,7 +56,7 @@ export async function sendEmailToRoles(roles: string[], subject: string, poNumbe
     if (!emails.length) return;
 
     await transporter.sendMail({
-      from: `"Purchase FMS" <${process.env.GMAIL_USER}>`,
+      from: process.env.SMTP_FROM || `"Purchase FMS" <${process.env.SMTP_USER}>`,
       to: emails.join(', '),
       subject,
       html: emailTemplate(subject, poNumber, status, performer, materials, deadline, note),
