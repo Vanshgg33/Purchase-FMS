@@ -3,15 +3,17 @@ import { connectDB } from './mongodb';
 import User from '@/models/User';
 import { toIST } from './dates';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 function emailTemplate(subject: string, poNumber: string, status: string, performer: string, materials: Array<{ name: string; requestedQty: number }>, deadline?: string, note?: string) {
   const statusColors: Record<string, string> = {
@@ -48,20 +50,28 @@ function emailTemplate(subject: string, poNumber: string, status: string, perfor
 }
 
 export async function sendEmailToRoles(roles: string[], subject: string, poNumber: string, status: string, performer: string, materials: Array<{ name: string; requestedQty: number }>, deadline?: string, note?: string) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('[mailer] Skipping email — SMTP_USER or SMTP_PASS not set');
+    return;
+  }
   try {
     await connectDB();
-    const users = await User.find({ role: { $in: roles }, isActive: true, email: { $ne: '' } }, 'email');
+    const users = await User.find({ role: { $in: roles }, isActive: true, email: { $exists: true, $ne: '' } }, 'email');
     const emails = users.map(u => u.email).filter(Boolean);
-    if (!emails.length) return;
+    if (!emails.length) {
+      console.warn('[mailer] No recipients found for roles:', roles);
+      return;
+    }
 
+    const transporter = getTransporter();
     await transporter.sendMail({
       from: process.env.SMTP_FROM || `"Purchase FMS" <${process.env.SMTP_USER}>`,
       to: emails.join(', '),
       subject,
       html: emailTemplate(subject, poNumber, status, performer, materials, deadline, note),
     });
+    console.log('[mailer] Email sent to:', emails.join(', '), '| subject:', subject);
   } catch (e) {
-    console.error('Email send error:', e);
+    console.error('[mailer] Email send error:', e);
   }
 }
